@@ -1,0 +1,449 @@
+import { useState, useRef, useCallback } from "react";
+
+const ACCENT = "#6C63FF";
+const ACCENT_LIGHT = "#EAE9FF";
+const DARK = "#0F0E17";
+const MID = "#2D2B3D";
+const SOFT = "#6B6880";
+const BG = "#F7F7FB";
+const WHITE = "#FFFFFF";
+
+const styles = {
+  app: {
+    minHeight: "100vh",
+    background: BG,
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "0 16px 60px",
+  },
+  header: {
+    width: "100%",
+    maxWidth: 680,
+    paddingTop: 48,
+    paddingBottom: 32,
+    textAlign: "center",
+  },
+  badge: {
+    display: "inline-block",
+    background: ACCENT_LIGHT,
+    color: ACCENT,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    borderRadius: 100,
+    padding: "4px 14px",
+    marginBottom: 16,
+  },
+  h1: {
+    fontSize: "clamp(28px, 5vw, 44px)",
+    fontWeight: 800,
+    color: DARK,
+    margin: "0 0 12px",
+    letterSpacing: "-0.03em",
+    lineHeight: 1.1,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: SOFT,
+    margin: 0,
+    lineHeight: 1.6,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 680,
+    background: WHITE,
+    borderRadius: 20,
+    boxShadow: "0 4px 32px rgba(15,14,23,0.08)",
+    overflow: "hidden",
+  },
+  dropzone: (isDragging, hasImage) => ({
+    position: "relative",
+    minHeight: hasImage ? "auto" : 280,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    border: `2px dashed ${isDragging ? ACCENT : "#E0DFF0"}`,
+    borderRadius: hasImage ? 0 : 20,
+    margin: hasImage ? 0 : 0,
+    background: isDragging ? ACCENT_LIGHT : WHITE,
+    transition: "all 0.2s ease",
+    padding: hasImage ? 0 : 40,
+  }),
+  dropIcon: {
+    width: 56,
+    height: 56,
+    background: ACCENT_LIGHT,
+    borderRadius: 16,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  dropTitle: {
+    fontSize: 17,
+    fontWeight: 700,
+    color: DARK,
+    marginBottom: 6,
+  },
+  dropSub: {
+    fontSize: 14,
+    color: SOFT,
+    marginBottom: 20,
+  },
+  browseBtn: {
+    background: ACCENT,
+    color: WHITE,
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 24px",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "opacity 0.2s",
+  },
+  previewImg: {
+    width: "100%",
+    maxHeight: 380,
+    objectFit: "contain",
+    display: "block",
+    background: "#F0EFF8",
+  },
+  resultsPanel: {
+    padding: "28px 32px",
+    borderTop: `1px solid #F0EFF8`,
+  },
+  resultHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  resultTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: SOFT,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
+  resetBtn: {
+    background: "none",
+    border: `1px solid #E0DFF0`,
+    borderRadius: 8,
+    padding: "5px 14px",
+    fontSize: 13,
+    color: SOFT,
+    cursor: "pointer",
+    fontWeight: 600,
+    transition: "all 0.2s",
+  },
+  predictionRow: (rank) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: rank === 0 ? 16 : 10,
+  }),
+  rankBadge: (rank) => ({
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    background: rank === 0 ? ACCENT : "#F0EFF8",
+    color: rank === 0 ? WHITE : SOFT,
+    fontSize: 13,
+    fontWeight: 700,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  }),
+  predLabel: (rank) => ({
+    flex: 1,
+    fontSize: rank === 0 ? 16 : 14,
+    fontWeight: rank === 0 ? 700 : 500,
+    color: rank === 0 ? DARK : MID,
+  }),
+  barWrap: {
+    width: 120,
+    height: 6,
+    background: "#F0EFF8",
+    borderRadius: 100,
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  bar: (pct, rank) => ({
+    height: "100%",
+    width: `${pct}%`,
+    background: rank === 0 ? ACCENT : "#C4C2E0",
+    borderRadius: 100,
+    transition: "width 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
+  }),
+  pctLabel: (rank) => ({
+    fontSize: 13,
+    fontWeight: 700,
+    color: rank === 0 ? ACCENT : SOFT,
+    width: 40,
+    textAlign: "right",
+    flexShrink: 0,
+  }),
+  loadingWrap: {
+    padding: "32px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 14,
+  },
+  spinner: {
+    width: 36,
+    height: 36,
+    border: `3px solid ${ACCENT_LIGHT}`,
+    borderTopColor: ACCENT,
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  },
+  loadingText: {
+    fontSize: 14,
+    color: SOFT,
+    fontWeight: 500,
+  },
+  errorBox: {
+    margin: "0 32px 28px",
+    background: "#FFF0F0",
+    border: "1px solid #FFD0D0",
+    borderRadius: 10,
+    padding: "12px 16px",
+    fontSize: 14,
+    color: "#C0392B",
+  },
+  topPrediction: {
+    background: ACCENT_LIGHT,
+    borderRadius: 12,
+    padding: "16px 20px",
+    marginBottom: 20,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  topEmoji: { fontSize: 28 },
+  topLabel: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: ACCENT,
+    letterSpacing: "-0.02em",
+  },
+  topConf: {
+    fontSize: 13,
+    color: SOFT,
+    marginTop: 2,
+  },
+};
+
+function UploadIcon() {
+  return (
+    <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+      <path d="M12 16V8M12 8l-3 3M12 8l3 3" stroke={ACCENT} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke={ACCENT} strokeWidth="2.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function getEmoji(label) {
+  const l = label.toLowerCase();
+  if (l.includes("cat")) return "🐱";
+  if (l.includes("dog")) return "🐶";
+  if (l.includes("bird")) return "🐦";
+  if (l.includes("car") || l.includes("vehicle") || l.includes("truck")) return "🚗";
+  if (l.includes("flower") || l.includes("rose") || l.includes("tulip")) return "🌸";
+  if (l.includes("food") || l.includes("pizza") || l.includes("burger")) return "🍕";
+  if (l.includes("person") || l.includes("human") || l.includes("face")) return "👤";
+  if (l.includes("tree") || l.includes("forest") || l.includes("plant")) return "🌲";
+  if (l.includes("mountain") || l.includes("landscape")) return "⛰️";
+  if (l.includes("ocean") || l.includes("sea") || l.includes("beach")) return "🌊";
+  if (l.includes("building") || l.includes("architecture")) return "🏛️";
+  if (l.includes("sky") || l.includes("cloud")) return "☁️";
+  if (l.includes("fruit") || l.includes("apple") || l.includes("orange")) return "🍎";
+  return "🔍";
+}
+
+export default function App() {
+  const [image, setImage] = useState(null); // { src: string, base64: string, mediaType: string }
+  const [predictions, setPredictions] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileRef = useRef();
+
+  const handleFile = useCallback((file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(",")[1];
+      setImage({ src: dataUrl, base64, mediaType: file.type });
+      setPredictions(null);
+      setError(null);
+      classify(base64, file.type);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const classify = async (base64, mediaType) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: mediaType, data: base64 },
+                },
+                {
+                  type: "text",
+                  text: `Analyze this image and return ONLY a JSON object (no markdown, no backticks, no explanation) with this exact shape:
+{
+  "predictions": [
+    { "label": "Short descriptive label", "confidence": 0.95 },
+    { "label": "Second possibility", "confidence": 0.03 },
+    { "label": "Third possibility", "confidence": 0.02 }
+  ],
+  "description": "One sentence describing what you see."
+}
+Rules:
+- "predictions" must have exactly 3 items, sorted by confidence descending.
+- Confidence values must sum to 1.0.
+- Labels should be concise (2–5 words), specific, and capitalized.
+- Return ONLY the JSON object, nothing else.`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.content?.map((b) => b.text || "").join("") || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setPredictions(parsed);
+    } catch (err) {
+      setError("Classification failed. Please try another image.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setImage(null);
+    setPredictions(null);
+    setError(null);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    handleFile(file);
+  };
+
+  return (
+    <div style={styles.app}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      `}</style>
+
+      <div style={styles.header}>
+        <div style={styles.badge}>AI Vision</div>
+        <h1 style={styles.h1}>Image Classifier</h1>
+        <p style={styles.subtitle}>
+          Drop any image and Claude's vision AI will identify what's in it — instantly.
+        </p>
+      </div>
+
+      <div style={styles.card}>
+        {/* Drop zone or preview */}
+        {!image ? (
+          <div
+            style={styles.dropzone(isDragging, false)}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={onDrop}
+            onClick={() => fileRef.current.click()}
+          >
+            <div style={styles.dropIcon}><UploadIcon /></div>
+            <div style={styles.dropTitle}>Drop an image here</div>
+            <div style={styles.dropSub}>PNG, JPG, WEBP, GIF · up to 5 MB</div>
+            <button style={styles.browseBtn} onClick={(e) => { e.stopPropagation(); fileRef.current.click(); }}>
+              Browse files
+            </button>
+          </div>
+        ) : (
+          <img src={image.src} alt="Uploaded" style={styles.previewImg} />
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => handleFile(e.target.files[0])}
+        />
+
+        {/* Loading */}
+        {loading && (
+          <div style={styles.loadingWrap}>
+            <div style={styles.spinner} />
+            <div style={styles.loadingText}>Analyzing image…</div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && <div style={styles.errorBox}>{error}</div>}
+
+        {/* Results */}
+        {predictions && !loading && (
+          <div style={styles.resultsPanel}>
+            <div style={styles.resultHeader}>
+              <span style={styles.resultTitle}>Predictions</span>
+              <button style={styles.resetBtn} onClick={reset}>Try another</button>
+            </div>
+
+            {/* Top prediction highlight */}
+            {predictions.predictions?.[0] && (
+              <div style={styles.topPrediction}>
+                <span style={styles.topEmoji}>{getEmoji(predictions.predictions[0].label)}</span>
+                <div>
+                  <div style={styles.topLabel}>{predictions.predictions[0].label}</div>
+                  <div style={styles.topConf}>{predictions.description}</div>
+                </div>
+              </div>
+            )}
+
+            {/* All predictions with bars */}
+            {predictions.predictions?.map((p, i) => (
+              <div key={i} style={styles.predictionRow(i)}>
+                <div style={styles.rankBadge(i)}>{i + 1}</div>
+                <div style={styles.predLabel(i)}>{p.label}</div>
+                <div style={styles.barWrap}>
+                  <div style={styles.bar(Math.round(p.confidence * 100), i)} />
+                </div>
+                <div style={styles.pctLabel(i)}>{Math.round(p.confidence * 100)}%</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
